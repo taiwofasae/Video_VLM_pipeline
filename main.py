@@ -23,9 +23,9 @@ def main():
     st.sidebar.title("Navigation")
     api_key = st.sidebar.text_input("Enter your OpenAI API Key:", type="password")
 
-    # Load restricted words and available models
-    from vlm_video.vlm_video_action import vlm_gbt
-    from utils.utils import load_restricted_words
+    # # Load restricted words and available models
+    # from vlm_video.vlm_video_action import vlm_gbt
+    # from utils.utils import load_restricted_words
     
     restricted_list, model_list = load_restricted_words()
     base_model = st.sidebar.selectbox("Select Base Model for Fine-Tuning", options=model_list)
