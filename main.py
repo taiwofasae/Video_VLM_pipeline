@@ -20,13 +20,23 @@ def main():
         unsafe_allow_html=True,
     )
 
-    st.sidebar.title("Navigation")
+    # st.sidebar.title("Navigation")
+    st.sidebar.markdown(
+        """
+        <div style="
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: Black;
+            margin-bottom: 10px;">
+            Navigation
+        </div>
+        """,
+        unsafe_allow_html=True,
+        )
+
     api_key = st.sidebar.text_input("Enter your OpenAI API Key:", type="password")
 
-    # # Load restricted words and available models
-    # from vlm_video.vlm_video_action import vlm_gbt
-    # from utils.utils import load_restricted_words
-    
     restricted_list, model_list = load_restricted_words()
     base_model = st.sidebar.selectbox("Select Base Model for Fine-Tuning", options=model_list)
 
