@@ -87,10 +87,13 @@ pause  # Remove this if you don't want the CMD screen to stay open for troublesh
 ---
 
 ##  Future Enhancements
-**Object Detection** - Adding YOLOor some other type bounding box detection.  
+**Object Detection** 
+  - Adding YOLOor some other type bounding box detection.
+    
 **Model Enhancements**
   - Multi-Frame Context Analysis: Instead of analyzing frames independently, use consecutive frames to infer temporal actions (e.g., using an LSTM or Transformer model).
   - Action Categorization & Confidence Scores: Fine-tune response generation to provide action category labels and confidence scores.
+
 **Additional UX Improvements**
    - Multilingual Support: Allow users to select a language for analysis.
    - Speech-to-Text for Audio Analysis: Extract insights from spoken words in the video.
