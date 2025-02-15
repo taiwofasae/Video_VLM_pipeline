@@ -7,37 +7,61 @@ import tempfile
 from io import BytesIO
 import pandas as pd
 from fpdf import FPDF
+import concurrent.futures
 
 # Function to encode image as base64 for GPT-4 Turbo
 def encode_image(image_bytes):
     return base64.b64encode(image_bytes).decode('utf-8')
 
-# Function to extract multiple frames from the video at specified intervals
-def extract_frames(video_path, frame_interval=30):
+# Function to check if GPU (CUDA) is available
+def is_cuda_available():
+    return cv2.cuda.getCudaEnabledDeviceCount() > 0
+
+# Function to extract multiple frames from the video at specified intervals with GPU acceleration
+def extract_frames(video_path, frame_interval=30, use_gpu=True):
     cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS)  # Get frames per second
+    fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     extracted_frames = []
+
+    use_cuda = is_cuda_available() if use_gpu else False
 
     for frame_number in range(0, total_frames, frame_interval):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
         success, frame = cap.read()
+
         if success:
+            if use_cuda:
+                gpu_frame = cv2.cuda_GpuMat()
+                gpu_frame.upload(frame)
+                frame = gpu_frame.download()  # Move back to CPU memory
+
             _, buffer = cv2.imencode(".jpg", frame)
-            
-            # Calculate timestamp in seconds
+
             timestamp_sec = frame_number / fps  
-            
-            # Convert timestamp to HH:MM:SS format
-            hours = int(timestamp_sec // 3600)
-            minutes = int((timestamp_sec % 3600) // 60)
-            seconds = int(timestamp_sec % 60)
-            formatted_timestamp = f"{hours:02}:{minutes:02}:{seconds:02}"  # HH:MM:SS format
-            
+            formatted_timestamp = f"{int(timestamp_sec // 3600):02}:{int((timestamp_sec % 3600) // 60):02}:{int(timestamp_sec % 60):02}"
+
             extracted_frames.append((frame_number, formatted_timestamp, buffer.tobytes()))
 
     cap.release()
     return extracted_frames
+
+# Function to analyze frames in parallel using ThreadPoolExecutor
+def analyze_frames_parallel(frames, prompt, api_key, base_model):
+    def analyze_single_frame(frame_data):
+        frame_number, timestamp_hms, frame_bytes = frame_data
+        response = analyze_frame_with_gpt4_turbo(frame_bytes, prompt, api_key, base_model)
+        return {
+            "Frame": frame_number,
+            "Timestamp": timestamp_hms,
+            "Detected Actions": response
+        }
+
+    # Use ThreadPoolExecutor for parallel frame analysis
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(analyze_single_frame, frames))
+
+    return results
 
 # Function to analyze an extracted frame with GPT-4 Turbo for actions
 def analyze_frame_with_gpt4_turbo(frame_bytes, prompt, api_key, base_model):
@@ -67,33 +91,24 @@ def create_pdf(filtered_results):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-
-    # Use a font that supports more characters
     pdf.set_font("Arial", size=12)
 
     pdf.cell(200, 10, "Filtered Video Analysis Results", ln=True, align='C')
     pdf.ln(10)
 
     for frame_data in filtered_results:
-        # Convert text to Latin-1 compatible encoding
         frame_text = f"Frame {frame_data['Frame']} (Time: {frame_data['Timestamp']}): {frame_data['Detected Actions']}"
-
-        # Replace unsupported characters safely
         frame_text = frame_text.encode("latin-1", "replace").decode("latin-1")
 
         pdf.multi_cell(0, 10, frame_text)
         pdf.ln(5)
 
-    # Create a BytesIO buffer for the PDF
     pdf_buffer = BytesIO()
-    
-    # Generate PDF output and write to BytesIO buffer
-    pdf_output = pdf.output(dest='S').encode('latin1')  # Ensure Latin-1 encoding
+    pdf_output = pdf.output(dest='S').encode('latin1')
     pdf_buffer.write(pdf_output)
-    pdf_buffer.seek(0)  # Reset the buffer position for reading
+    pdf_buffer.seek(0)
 
     return pdf_buffer
-
 
 # Streamlit App
 def vlm_gbt(api_key, base_model):
@@ -106,8 +121,8 @@ def vlm_gbt(api_key, base_model):
     prompt = st.text_input("💬 Enter a prompt", "Describe the video and actions happening in it")
     keyword = st.text_input("🔍 Enter keyword to filter results", "")
     frame_interval = st.number_input("🎞 Select frame extraction interval", min_value=1, value=30, step=10)
+    use_gpu = st.checkbox("⚡ Enable GPU Acceleration (CUDA)", value=True)
 
-    # Check if session state exists for previous results
     if "filtered_results" not in st.session_state:
         st.session_state.filtered_results = []
 
@@ -120,7 +135,6 @@ def vlm_gbt(api_key, base_model):
 
         st.video(video_path)
 
-        # Create two columns for the buttons
         col1, col2 = st.columns([1, 1])
 
         with col1:
@@ -130,65 +144,37 @@ def vlm_gbt(api_key, base_model):
             clear_memory_clicked = st.button("🗑 Clear ChatGPT Memory")
 
         if analyze_clicked:
-            with st.spinner("🔎 Extracting frames and analyzing actions..."):
-                frames = extract_frames(video_path, frame_interval)
-                filtered_results = []
+            with st.spinner("🔎 Extracting frames and analyzing actions... (Parallel Processing Enabled)"):
+                frames = extract_frames(video_path, frame_interval, use_gpu=use_gpu)
+                filtered_results = analyze_frames_parallel(frames, prompt, api_key, base_model)
 
-                if frames:
-                    for frame_number, timestamp_hms, frame_bytes in frames:
-                        response = analyze_frame_with_gpt4_turbo(frame_bytes, prompt, api_key, base_model)
-                        
-                        # If the keyword is found in the response, store the result
-                        if keyword.lower() in response.lower():
-                            filtered_results.append({
-                                "Frame": frame_number,
-                                "Timestamp": timestamp_hms,  # Video timestamp in HH:MM:SS format
-                                "Detected Actions": response
-                            })
+                if keyword:
+                    filtered_results = [res for res in filtered_results if keyword.lower() in res["Detected Actions"].lower()]
 
-                    if filtered_results:
-                        # Save results to session state to persist them
-                        st.session_state.filtered_results = filtered_results
+                if filtered_results:
+                    st.session_state.filtered_results = filtered_results
                 else:
-                    st.error("❌ Unable to extract frames from the video.")
+                    st.error("❌ No relevant results found.")
 
-        # **Display Results and Provide Downloads (Without Clearing Data)**
         if st.session_state.filtered_results:
-            # Convert filtered results to DataFrame
             results_df = pd.DataFrame(st.session_state.filtered_results)
-
-            # Display Results in Table Format
             st.subheader(f"📖 Filtered Results for Keyword: '{keyword}'")
             st.dataframe(results_df)
 
-            # Generate CSV data
             csv_buffer = BytesIO()
             results_df.to_csv(csv_buffer, index=False)
             csv_buffer.seek(0)
 
-            # Generate PDF data
             pdf_buffer = create_pdf(st.session_state.filtered_results)
 
-            # **Download Buttons in the Same Row**
             col1, col2 = st.columns(2)
 
             with col1:
-                st.download_button(
-                    label="📥 Download CSV",
-                    data=csv_buffer,
-                    file_name="filtered_video_analysis.csv",
-                    mime="text/csv"
-                )
+                st.download_button("📥 Download CSV", data=csv_buffer, file_name="filtered_video_analysis.csv", mime="text/csv")
 
             with col2:
-                st.download_button(
-                    label="📥 Download PDF",
-                    data=pdf_buffer,
-                    file_name="filtered_video_summary.pdf",
-                    mime="application/pdf"
-                )
+                st.download_button("📥 Download PDF", data=pdf_buffer, file_name="filtered_video_summary.pdf", mime="application/pdf")
 
-        # **Clear all stored session data only when explicitly requested**
         if clear_memory_clicked:
-            st.session_state.filtered_results = []  # Clear only the results, not the whole session state
-            st.rerun()  # Restart the app to reflect changes
+            st.session_state.filtered_results = []
+            st.rerun()
