@@ -12,7 +12,6 @@ This project is a **Streamlit-based AI Assistant** that allows users to **analyz
 - **Keyword-Based Filtering**: Filters frames based on user-defined keywords.
 - **Timestamped Results**: Each frame includes a **timestamp** (HH:MM:SS format) for accuracy.
 - **Downloadable Reports**: Save results as **CSV** and **PDF** for later use.
-- **Annotated Video Output**: Provides a downloadable video with **action descriptions overlaid**.
 - **Secure API Access**: Requires an **OpenAI API Key** to ensure authorized usage.
 
 ---
