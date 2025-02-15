@@ -1,15 +1,18 @@
-# 📹 Vision-Language Model for Video Action Analysis 🚀
+# Vision-Language Model for Video Action Analysis 
 
 This project is a **Streamlit-based AI Assistant** that allows users to **analyze video frames, detect actions, and extract meaningful insights** using OpenAI's GPT-4 Turbo.
 
 ---
 
 ## 📌 Features
+- **Parallel Processing**: Uses `ThreadPoolExecutor` to analyze multiple frames concurrently.
+- **GPU Acceleration**: Leverages OpenCV’s `cuda` backend for faster frame decoding (if supported).
 - **Frame Extraction**: Extracts frames from a video at a user-defined interval.
 - **AI-Powered Action Detection**: Uses GPT-4 Turbo to analyze and describe actions in frames.
 - **Keyword-Based Filtering**: Filters frames based on user-defined keywords.
 - **Timestamped Results**: Each frame includes a **timestamp** (HH:MM:SS format) for accuracy.
 - **Downloadable Reports**: Save results as **CSV** and **PDF** for later use.
+- **Annotated Video Output**: Provides a downloadable video with **action descriptions overlaid**.
 - **Secure API Access**: Requires an **OpenAI API Key** to ensure authorized usage.
 
 ---
@@ -28,7 +31,7 @@ This project is a **Streamlit-based AI Assistant** that allows users to **analyz
 
 ---
 
-## 📦 Installation
+## Installation
 ### **1️⃣ Clone the Repository**
 ```sh
 git clone https://github.com/TimGoebel/Video_VLM_pipeline.git
@@ -42,7 +45,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🚀 Running the App
+## Running the App
 Run the Streamlit app with:
 ```sh
 streamlit run main.py
@@ -57,17 +60,34 @@ pause  # Remove this if you don't want the CMD screen to stay open for troublesh
 
 ---
 
-## 🎥 How to Use
+## How to Use
 
 1️⃣ **Run the app** using Streamlit.  
 2️⃣ **Enter your OpenAI API key** in the sidebar.  
 3️⃣ **Select GPT-4 Turbo** as the model.  
 4️⃣ **Upload a video** file.  
 5️⃣ **Set frame extraction interval.**  
-6️⃣ **Enter a keyword** to filter relevant actions.  
-7️⃣ **Analyze video** and view detected actions.  
-8️⃣ **Download results** in CSV or PDF format.  
-9️⃣ **Clear all stored session data only when explicitly requested.**  
+6️⃣ **Enable GPU acceleration (if supported).**  
+7️⃣ **Enter a keyword** to filter relevant actions.  
+8️⃣ **Analyze video** and view detected actions.  
+9️⃣ **Download results** in CSV, PDF, or annotated video format.  
+🔟 **Clear all stored session data only when explicitly requested.**  
+
+---
+
+## Performance Optimization
+### **Parallel Frame Processing**
+- Extracts frames concurrently using `ThreadPoolExecutor`.
+- Reduces analysis time by parallelizing GPT-4 Turbo calls.
+
+### **GPU Acceleration with OpenCV CUDA**
+- Uses CUDA (`cv2.cuda_GpuMat`) for **faster frame decoding**.
+- Falls back to CPU if CUDA is unavailable.
+
+---
+
+##  Future Enhancements
+🚀 **YOLO Object Detection** - Adding YOLO-based bounding box detection.  
 
 ---
 
@@ -75,4 +95,6 @@ pause  # Remove this if you don't want the CMD screen to stay open for troublesh
 This project is licensed under the **MIT License**.
 
 ---
+
+
 
