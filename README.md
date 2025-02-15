@@ -76,12 +76,3 @@ This project is licensed under the **MIT License**.
 
 ---
 
-## 🤝 Contributing
-Feel free to submit **issues**, **feature requests**, or **pull requests** to improve the project!
-
----
-
-## 📧 Contact
-For questions, email **your.email@example.com** or visit our **GitHub repository**.
-
-Happy Coding! 🚀
