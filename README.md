@@ -31,7 +31,7 @@ This project is a **Streamlit-based AI Assistant** that allows users to **analyz
 ## 📦 Installation
 ### **1️⃣ Clone the Repository**
 ```sh
-git clone https://github.com/your-repo/video-action-analysis.git
+git clone https://github.com/TimGoebel/Video_VLM_pipeline.git
 cd video-action-analysis
 ```
 
