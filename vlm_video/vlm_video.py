@@ -170,7 +170,7 @@ def vlm_gbt(api_key, base_model):
             with col2:
                 st.download_button("📥 Download PDF", data=pdf_buffer, file_name="filtered_video_summary.pdf", mime="application/pdf")
 
-
+        #**Clear all stored session data only when explicitly requested**
         if clear_memory_clicked:
             st.session_state.filtered_results = []
             st.rerun()
