@@ -74,6 +74,31 @@ pause  # Remove this if you don't want the CMD screen to stay open for troublesh
 
 ---
 
+## How They Work Together
+
+✅ **Example 1: Fast Analysis, Sparse Frames**
+- `frame_interval = 60` (1 frame every 2 seconds)
+- `sequence_length = 5` (5-frame sequences analyzed together)
+- **Effect:** The model will analyze sequences of frames spanning **10 seconds** of video at a time.
+
+✅ **Example 2: Dense Analysis, Short Sequences**
+- `frame_interval = 10` (1 frame every 0.3 seconds)
+- `sequence_length = 3` (3-frame sequences analyzed together)
+- **Effect:** The model gets finer details but still uses short-term context.
+
+✅ **Example 3: Comprehensive Motion Analysis**
+- `frame_interval = 30` (1 frame per second)
+- `sequence_length = 7` (7-frame sequences analyzed together)
+- **Effect:** The AI observes motion over **7 seconds**, improving its ability to detect continuous actions (e.g., someone getting up from a chair or throwing an object).
+
+✅ **Keyword-Based Filtering**
+- **Purpose:** Allows users to specify a keyword for filtering detected actions.
+- **Effect:** The model will only retain and display results containing the specified keyword.
+- **Example:** If the keyword is `"running"`, only frames where `"running"` is detected will be displayed in the results.
+- **Use Case:** Helps in refining search results when looking for specific actions in large video datasets.
+
+---
+
 ## Performance Optimization
 ### **Parallel Frame Processing**
 - Extracts frames concurrently using `ThreadPoolExecutor`.
@@ -85,24 +110,14 @@ pause  # Remove this if you don't want the CMD screen to stay open for troublesh
 
 ---
 
-##  Future Enhancements
-**Object Detection** 
-  - Adding YOLOor some other type bounding box detection.
-    
-**Model Enhancements**
-  - Multi-Frame Context Analysis: Instead of analyzing frames independently, use consecutive frames to infer temporal actions (e.g., using an LSTM or Transformer model).
-  - Action Categorization & Confidence Scores: Fine-tune response generation to provide action category labels and confidence scores.
+## Future Enhancements
+🚀 **YOLO Object Detection** - Adding YOLO-based bounding box detection.  
+📊 **Visualization Dashboards** - Graph-based analytics of detected actions.  
+🎭 **Pose Estimation** - Tracking human movement using **MediaPipe/OpenPose**.  
 
-**Additional UX Improvements**
-   - Multilingual Support: Allow users to select a language for analysis.
-   - Speech-to-Text for Audio Analysis: Extract insights from spoken words in the video.
-   - Auto-Summarization: Provide a summary of detected actions instead of just listing them.
 ---
 
 ## 📜 License
 This project is licensed under the **MIT License**.
 
 ---
-
-
-
