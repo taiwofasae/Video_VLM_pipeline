@@ -9,6 +9,7 @@ from io import BytesIO
 import pandas as pd
 from fpdf import FPDF
 import concurrent.futures
+import re
 
 # Function to encode image as base64 for GPT-4 Turbo
 def encode_image(image_bytes):
@@ -54,7 +55,7 @@ def create_pdf(filtered_results):
     pdf.ln(10)
 
     for frame_data in filtered_results:
-        frame_text = f"Frame Start: {frame_data['Frame Start']} - End: {frame_data['Frame End']} - Actions: {frame_data['Detected Actions']}"
+        frame_text = f"Frame Start: {frame_data['Frame Start']} - End: {frame_data['Frame End']} - Actions: {frame_data['Detected Actions']} - Objects: {frame_data['Detected Objects']}"
         frame_text = frame_text.encode("latin-1", "replace").decode("latin-1")
 
         pdf.multi_cell(0, 10, frame_text)
@@ -68,7 +69,7 @@ def create_pdf(filtered_results):
     return pdf_buffer
 
 # Function to analyze sequences of frames with GPT-4 Turbo
-def analyze_frame_sequence(sequence, prompt, api_key, base_model):
+def analyze_frame_sequence(sequence, prompt, search_object, api_key, base_model):
     client = openai.OpenAI(api_key=api_key)
     try:
         image_payload = [
@@ -81,25 +82,50 @@ def analyze_frame_sequence(sequence, prompt, api_key, base_model):
             messages=[
                 {"role": "system", "content": "You are an AI assistant analyzing sequences of images to detect actions and their confidence scores."},
                 {"role": "user", "content": [
-                    {"type": "text", "text": f"{prompt}. Analyze actions across these frames and provide action categories with confidence scores."}
+                    {"type": "text", "text": f"""{prompt}. Two things:
+                    1.  Analyze actions across these frames and provide action categories with confidence scores.
+
+                    2.  More importantly, find objects in the video frames and provide in this list format:
+                        ---start list---
+                        Object1
+                        Object2
+                        ---end list---
+
+                    The frames are attached.
+                    """}
                 ] + image_payload}
             ],
-            max_tokens=500
+            max_tokens=300
         )
-        
         return response.choices[0].message.content  
     
     except openai.OpenAIError as e:
         return f"❌ OpenAI API Error: {str(e)}"
 
+def extract_objects_from_response(response):
+    print(f'Response: {response}')
+    # 1. Grab everything between the markers
+    m = re.search(r"---start list---\s*(.*?)\s*---end list---", response, re.DOTALL)
+    if not m:
+        return []
+        pass#raise ValueError("Couldn't find the start/end markers")
+
+    block = m.group(1)
+
+    # 2. Split into lines, strip out any blank ones
+    objects = [line.strip() for line in block.splitlines() if line.strip()]
+
+    return objects
+
 # Function to analyze multi-frame sequences in parallel
-def analyze_sequences_parallel(sequences, prompt, api_key, base_model):
+def analyze_sequences_parallel(sequences, prompt, search_object, api_key, base_model):
     def analyze_single_sequence(sequence):
-        response = analyze_frame_sequence(sequence, prompt, api_key, base_model)
+        response = analyze_frame_sequence(sequence, prompt, search_object, api_key, base_model)
         return {
             "Frame Start": sequence[0][1],  
             "Frame End": sequence[-1][1],  
-            "Detected Actions": response
+            "Detected Actions": response,
+            "Detected Objects": ', '.join(extract_objects_from_response(response))
         }
     
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -117,6 +143,8 @@ def vlm_gbt(api_key, base_model):
     frame_interval = st.number_input("🎞 Select frame extraction interval", min_value=1, value=30, step=10)
     sequence_length = st.number_input("🔗 Number of Frames per Sequence", min_value=2, value=5, step=1)
     keyword = st.text_input("🔍 Enter keyword to filter results", "")
+
+    search_object = st.text_input(" Enter object to find in frames", "")
     
     if "filtered_results" not in st.session_state:
         st.session_state.filtered_results = []
@@ -141,7 +169,7 @@ def vlm_gbt(api_key, base_model):
         if analyze_clicked:
             with st.spinner("🔎 Extracting frames and analyzing actions..."):
                 sequences = extract_multi_frame_context(video_path, frame_interval, sequence_length)
-                filtered_results = analyze_sequences_parallel(sequences, prompt, api_key, base_model)
+                filtered_results = analyze_sequences_parallel(sequences, prompt, search_object, api_key, base_model)
                 
                 if keyword:
                     filtered_results = [res for res in filtered_results if keyword.lower() in res["Detected Actions"].lower()]
